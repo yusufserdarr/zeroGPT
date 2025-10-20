@@ -1,26 +1,42 @@
 import streamlit as st
 import joblib
 import os
-import pandas as pd
+import re
 
 st.set_page_config(page_title="ZeroGPT Türkçe v2", page_icon="🤖", layout="centered")
 
 st.title("🤖 ZeroGPT Türkçe v2")
 st.write("""
 Bu uygulama, metnin **İnsan (0)** mı yoksa **Yapay Zekâ (1)** tarafından mı yazıldığını tahmin eder.  
-Yeni sürüm; **perplexity, burstiness, grammar ve kelime çeşitliliği** gibi özellikleri de dikkate alır.
 """)
 
 # ---------------------------------------------------------
 # Model kontrol
 # ---------------------------------------------------------
-PIPE_PATH = "zeroGPT_model.pkl"
+MODEL_PATH = "zeroGPT_model.pkl"
+VECTORIZER_PATH = "zeroGPT_vectorizer.pkl"
 
-if not os.path.exists(PIPE_PATH):
-    st.error("❌ Model dosyası bulunamadı. Lütfen önce terminalde şu komutu çalıştır:\n\n`python3 zeroGPT_v2.py --save`")
+if not os.path.exists(MODEL_PATH) or not os.path.exists(VECTORIZER_PATH):
+    st.error("❌ Model veya vektörleştirici bulunamadı. Lütfen önce terminalde şu komutu çalıştır:\n\n`python zeroGPTdeneme.py --save`")
     st.stop()
 
-pipe = joblib.load(PIPE_PATH)
+def clean_text(s: str) -> str:
+    """Metni temizle"""
+    if not isinstance(s, str):
+        return ""
+    s = re.sub(r"http\S+|www\.\S+", " ", s)
+    s = re.sub(r"[\t\r\n]+", " ", s)
+    s = re.sub(r"\s+", " ", s)
+    return s.strip()
+
+@st.cache_resource
+def load_model():
+    """Model ve vektörleştiriciyi yükle"""
+    model = joblib.load(MODEL_PATH)
+    vectorizer = joblib.load(VECTORIZER_PATH)
+    return model, vectorizer
+
+model, vectorizer = load_model()
 
 # ---------------------------------------------------------
 # Kullanıcı girişi
@@ -31,9 +47,13 @@ if st.button("🚀 Analiz Et"):
     if not text.strip():
         st.warning("Lütfen bir metin girin.")
     else:
-        X = pd.DataFrame({"content": [text]})
-        prob = pipe.predict_proba(X)[0]
-        pred = int(prob.argmax())
+        # Metni temizle ve vektörleştir
+        cleaned_text = clean_text(text)
+        X = vectorizer.transform([cleaned_text])
+        
+        # Tahmin yap
+        pred = model.predict(X)[0]
+        prob = model.predict_proba(X)[0]
         conf = float(prob[pred])
 
         label = "🧠 **Yapay Zekâ (AI)**" if pred == 1 else "👤 **İnsan (Human)**"
@@ -42,6 +62,13 @@ if st.button("🚀 Analiz Et"):
         st.markdown(f"<h3 style='color:{color}'>{label}</h3>", unsafe_allow_html=True)
         st.progress(conf)
         st.caption(f"Güven oranı: **{conf*100:.2f}%**")
+        
+        # Detaylı olasılıklar
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("👤 İnsan", f"%{prob[0]*100:.2f}")
+        with col2:
+            st.metric("🤖 Yapay Zeka", f"%{prob[1]*100:.2f}")
 
         st.subheader("📊 Özellik Analizi (yaklaşık):")
         st.write("""
