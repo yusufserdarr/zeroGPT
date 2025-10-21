@@ -83,8 +83,11 @@ def clean_text(s: str) -> str:
     if not isinstance(s, str):
         return ""
     s = re.sub(r"http\S+|www\.\S+", " ", s)
-    s = re.sub(r"[\t\r\n]+", " ", s)
-    s = re.sub(r"\s+", " ", s)
+    # Sekmeler ve carriage return'ü temizle, fakat yeni satırları koru
+    s = re.sub(r"[\t\r]+", " ", s)
+    # Aynı satırda birden fazla boşluk ve yeni satırları temizle (paragraflar korunur)
+    s = re.sub(r" +", " ", s)  # Satır içi çoklu boşlukları düzelt
+    s = re.sub(r"\n\s*\n", "\n", s)  # Çoklu boş satırları tek satıra indir
     return s.strip()
 
 def extract_advanced_features(text: str) -> dict:
@@ -338,6 +341,9 @@ if st.button("🚀 Analiz Et", type="primary", use_container_width=True):
                 is_ai = result['is_ai']
                 ai_prob = result['ai_prob']
                 
+                # Yeni satırları <br> tagına dönüştür
+                text_html = text.replace('\n', '<br>')
+                
                 if is_ai and ai_prob > 0.6:  # AI tespit eşiği
                     ai_count += 1
                     # Sarı vurgulu AI cümlesi - çok belirgin!
@@ -354,7 +360,7 @@ if st.button("🚀 Analiz Et", type="primary", use_container_width=True):
                         transition: all 0.3s ease;
                         cursor: help;
                         box-shadow: 0 2px 8px rgba(255, 217, 61, 0.5);
-                    " title="🤖 AI Olasılığı: %{ai_prob*100:.1f}">🤖 {text}</span> 
+                    " title="🤖 AI Olasılığı: %{ai_prob*100:.1f}">🤖 {text_html}</span> 
                     '''
                 else:
                     human_count += 1
@@ -366,7 +372,7 @@ if st.button("🚀 Analiz Et", type="primary", use_container_width=True):
                         margin: 3px;
                         display: inline-block;
                         border-radius: 5px;
-                    ">👤 {text}</span> '''
+                    ">👤 {text_html}</span> '''
             
             html_content += '</div>'
             

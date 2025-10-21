@@ -29,8 +29,11 @@ def clean_text(s: str) -> str:
     if not isinstance(s, str):
         return ""
     s = re.sub(r"http\S+|www\.\S+", " ", s)
-    s = re.sub(r"[\t\r\n]+", " ", s)
-    s = re.sub(r"\s+", " ", s)
+    # Sekmeler ve carriage return'ü temizle, fakat yeni satırları koru
+    s = re.sub(r"[\t\r]+", " ", s)
+    # Aynı satırda birden fazla boşluk ve yeni satırları temizle (paragraflar korunur)
+    s = re.sub(r" +", " ", s)  # Satır içi çoklu boşlukları düzelt
+    s = re.sub(r"\n\s*\n", "\n", s)  # Çoklu boş satırları tek satıra indir
     return s.strip()
 
 def extract_advanced_features(text: str) -> dict:

@@ -292,7 +292,9 @@
                     badge = '';
                 }
                 
-                highlightedHTML += `<span style="${style}">${emoji}${sent.text}${badge}</span> `;
+                // Yeni satırları <br> tagına dönüştür
+                const sentText = sent.text.replace(/\n/g, '<br>');
+                highlightedHTML += `<span style="${style}">${emoji}${sentText}${badge}</span> `;
             });
             
             highlightedDiv.innerHTML = highlightedHTML;
