@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 ZeroGPT Türkçe - AI Dedektörü</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #4facfe);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+        }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .ai-highlight {
+            padding: 8px 12px;
+            margin: 4px;
+            display: inline-block;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            cursor: help;
+        }
+        
+        .ai-highlight:hover {
+            transform: scale(1.05);
+            filter: brightness(0.9);
+        }
+        
+        .human-highlight {
+            background: #f0f0f0;
+            padding: 8px 12px;
+            margin: 4px;
+            display: inline-block;
+            border-radius: 6px;
+        }
+        
+        .animate-in {
+            animation: slideInUp 0.6s ease-out;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen py-8 px-4">
+    
+    <!-- Header -->
+    <div class="max-w-4xl mx-auto mb-8 text-center animate-in">
+        <h1 class="text-6xl font-bold text-white mb-4">
+            🎯 ZeroGPT Türkçe
+        </h1>
+        <p class="text-2xl text-white opacity-90">
+            Gerçek ChatGPT Metinleriyle Eğitilmiş AI Dedektörü
+        </p>
+    </div>
+    
+    <!-- Stats Cards -->
+    <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 animate-in">
+        <div class="glass rounded-xl p-6 text-center hover:scale-105 transition-transform">
+            <div class="text-4xl mb-2">✅</div>
+            <div class="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">99.98%</div>
+            <div class="text-gray-600 font-semibold">Doğruluk Oranı</div>
+        </div>
+        <div class="glass rounded-xl p-6 text-center hover:scale-105 transition-transform">
+            <div class="text-4xl mb-2">🎯</div>
+            <div class="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">GB</div>
+            <div class="text-gray-600 font-semibold">Gradient Boost</div>
+        </div>
+        <div class="glass rounded-xl p-6 text-center hover:scale-105 transition-transform">
+            <div class="text-4xl mb-2">📊</div>
+            <div class="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">15K+</div>
+            <div class="text-gray-600 font-semibold">TF-IDF Özellikler</div>
+        </div>
+    </div>
+    
+    <!-- Main Card -->
+    <div class="max-w-4xl mx-auto glass rounded-2xl shadow-2xl p-8 animate-in">
+        
+        <!-- Input Area -->
+        <div class="mb-6">
+            <label class="block text-gray-700 font-semibold mb-3 text-lg">
+                📝 Analiz Edilecek Metni Girin
+            </label>
+            <textarea 
+                id="textInput" 
+                rows="8" 
+                class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-purple-500 focus:outline-none transition-all text-lg"
+                placeholder="Örnek: Yapay zeka teknolojileri günümüzde birçok sektörde kullanılıyor. Bu teknolojiler, verimliliği artırmakta ve yeni olanaklar sunmaktadır..."
+            ></textarea>
+            
+            <!-- Vurgulu Metin Görüntüleme (analiz sonrası gösterilecek) -->
+            <div id="highlightedText" class="hidden w-full px-4 py-3 border-2 border-purple-500 rounded-xl text-lg bg-white" style="line-height: 2.2;"></div>
+        </div>
+        
+        <!-- Analyze Button -->
+        <button 
+            id="analyzeBtn" 
+            class="btn-primary w-full py-4 text-white font-bold text-xl rounded-xl shadow-lg"
+            onclick="analyzeText()"
+        >
+            🚀 Analiz Et
+        </button>
+        
+        <!-- Loading Spinner -->
+        <div id="loading" class="hidden text-center py-8">
+            <div class="spinner mx-auto"></div>
+            <p class="text-gray-600 mt-4 font-semibold">🔍 Detaylı analiz yapılıyor...</p>
+        </div>
+        
+        <!-- Results -->
+        <div id="results" class="hidden mt-8">
+            
+            <!-- Main Result -->
+            <div id="mainResult" class="mb-6 p-6 rounded-xl text-center text-3xl font-bold"></div>
+            
+            <!-- Probabilities -->
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="bg-green-50 p-4 rounded-xl border-2 border-green-200">
+                    <div class="text-green-600 font-semibold mb-2">👤 İnsan</div>
+                    <div class="text-3xl font-bold text-green-700" id="humanProb">0%</div>
+                </div>
+                <div class="bg-red-50 p-4 rounded-xl border-2 border-red-200">
+                    <div class="text-red-600 font-semibold mb-2">🤖 Yapay Zeka</div>
+                    <div class="text-3xl font-bold text-red-700" id="aiProb">0%</div>
+                </div>
+            </div>
+            
+            <!-- Renk Açıklaması -->
+            <div class="mb-6 bg-blue-50 p-4 rounded-xl border-2 border-blue-200">
+                <h3 class="text-lg font-bold mb-2 text-blue-800">📖 Renk Açıklaması</h3>
+                <p class="text-sm text-gray-700">
+                    <span class="inline-block bg-red-400 px-3 py-1 rounded text-white">🤖 Kırmızı</span> = %70+ AI (Kesin) &nbsp;
+                    <span class="inline-block bg-yellow-300 px-3 py-1 rounded">⚠️ Turuncu</span> = %50-70 AI &nbsp;
+                    <span class="inline-block bg-yellow-100 px-3 py-1 rounded">🟡 Sarı</span> = %30-50 AI &nbsp;
+                    <span class="inline-block bg-gray-100 px-3 py-1 rounded">⬜ Normal</span> = İnsan yazısı
+                </p>
+            </div>
+            
+            <!-- Statistics -->
+            <div class="grid grid-cols-3 gap-4">
+                <div class="bg-yellow-50 p-4 rounded-xl text-center border-2 border-yellow-200">
+                    <div class="text-2xl font-bold text-yellow-700" id="aiCount">0</div>
+                    <div class="text-yellow-600 font-semibold">🤖 AI Cümleleri</div>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-xl text-center border-2 border-blue-200">
+                    <div class="text-2xl font-bold text-blue-700" id="humanCount">0</div>
+                    <div class="text-blue-600 font-semibold">👤 İnsan Cümleleri</div>
+                </div>
+                <div class="bg-purple-50 p-4 rounded-xl text-center border-2 border-purple-200">
+                    <div class="text-2xl font-bold text-purple-700" id="totalCount">0</div>
+                    <div class="text-purple-600 font-semibold">📝 Toplam</div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <div class="max-w-4xl mx-auto mt-8 text-center text-white opacity-80">
+        <p class="text-lg">🎯 ZeroGPT Türkçe v1.0 - Modern Web Edition</p>
+    </div>
+
+    <script>
+        async function analyzeText() {
+            const text = document.getElementById('textInput').value.trim();
+            
+            if (!text || text.length < 20) {
+                alert('⚠️ Lütfen en az 20 karakter uzunluğunda bir metin girin.');
+                return;
+            }
+            
+            // Hide results, show loading
+            document.getElementById('results').classList.add('hidden');
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('analyzeBtn').disabled = true;
+            
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Analiz hatası');
+                }
+                
+                const data = await response.json();
+                displayResults(data);
+                
+            } catch (error) {
+                alert('❌ Bir hata oluştu: ' + error.message);
+            } finally {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('analyzeBtn').disabled = false;
+            }
+        }
+        
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            const mainResult = document.getElementById('mainResult');
+            
+            // Metin kutusunu gizle, vurgulu metni göster
+            document.getElementById('textInput').classList.add('hidden');
+            const highlightedDiv = document.getElementById('highlightedText');
+            highlightedDiv.classList.remove('hidden');
+            
+            // Vurgulu metni oluştur
+            let highlightedHTML = '';
+            data.sentences.forEach(sent => {
+                const aiProb = sent.ai_prob;
+                const aiPercent = (aiProb * 100).toFixed(0);
+                
+                let style, emoji, badge;
+                
+                if (aiProb >= 0.7) {
+                    style = 'background: linear-gradient(120deg, #ff6b6b 0%, #ee5a6f 100%); color: white; padding: 4px 8px; border-radius: 6px; font-weight: 600;';
+                    emoji = '🤖';
+                    badge = `<sup style="background: #c92a2a; color: white; padding: 1px 6px; border-radius: 10px; font-size: 11px; margin-left: 3px;">${aiPercent}%</sup>`;
+                } else if (aiProb >= 0.5) {
+                    style = 'background: linear-gradient(120deg, #FFD93D 0%, #FFC300 100%); color: black; padding: 4px 8px; border-radius: 6px; font-weight: 600;';
+                    emoji = '⚠️';
+                    badge = `<sup style="background: #FF6B35; color: white; padding: 1px 6px; border-radius: 10px; font-size: 11px; margin-left: 3px;">${aiPercent}%</sup>`;
+                } else if (aiProb >= 0.3) {
+                    style = 'background: linear-gradient(120deg, #FFF4A3 0%, #FFE66D 100%); color: black; padding: 4px 8px; border-radius: 6px;';
+                    emoji = '🟡';
+                    badge = `<sup style="background: #FFA94D; color: white; padding: 1px 6px; border-radius: 10px; font-size: 11px; margin-left: 3px;">${aiPercent}%</sup>`;
+                } else {
+                    style = 'padding: 4px 2px;';
+                    emoji = '';
+                    badge = '';
+                }
+                
+                highlightedHTML += `<span style="${style}">${emoji}${sent.text}${badge}</span> `;
+            });
+            
+            highlightedDiv.innerHTML = highlightedHTML;
+            
+            // Main result
+            if (data.prediction === 0) {
+                mainResult.className = 'mb-6 p-6 rounded-xl text-center text-3xl font-bold bg-green-100 text-green-700 border-4 border-green-300';
+                mainResult.innerHTML = '✅ İNSAN YAZISI';
+            } else {
+                mainResult.className = 'mb-6 p-6 rounded-xl text-center text-3xl font-bold bg-red-100 text-red-700 border-4 border-red-300';
+                mainResult.innerHTML = '🤖 YAPAY ZEKA YAZISI';
+            }
+            
+            // Probabilities
+            document.getElementById('humanProb').textContent = (data.probabilities.human * 100).toFixed(1) + '%';
+            document.getElementById('aiProb').textContent = (data.probabilities.ai * 100).toFixed(1) + '%';
+            
+            // İstatistikleri hesapla
+            let aiCount = 0;
+            let humanCount = 0;
+            
+            data.sentences.forEach(sent => {
+                const aiProb = sent.ai_prob;
+                
+                if (aiProb >= 0.5) {
+                    aiCount++;
+                } else {
+                    humanCount++;
+                }
+            });
+            
+            // Statistics
+            document.getElementById('aiCount').textContent = aiCount;
+            document.getElementById('humanCount').textContent = humanCount;
+            document.getElementById('totalCount').textContent = aiCount + humanCount;
+            
+            // Show results
+            resultsDiv.classList.remove('hidden');
+            resultsDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // Enter key support
+        document.getElementById('textInput').addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                analyzeText();
+            }
+        });
+    </script>
+    
+</body>
+</html>
+

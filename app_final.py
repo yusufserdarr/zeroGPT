@@ -6,6 +6,7 @@ ZeroGPT Final - Gerçek ChatGPT Tespiti
 Gerçek ChatGPT metinleriyle eğitilmiş final model
 """
 import streamlit as st
+import streamlit.components.v1 as components
 import joblib
 import os
 import re
@@ -18,8 +19,57 @@ from scipy.sparse import hstack
 st.set_page_config(
     page_title="ZeroGPT Türkçe - Final",
     page_icon="🎯",
-    layout="centered"
+    layout="centered",
+    initial_sidebar_state="collapsed"
 )
+
+# Minimal CSS - Beyaz arka plan zorla!
+st.markdown("""
+<style>
+    /* Ana arka planı beyaz yap */
+    .stApp {
+        background-color: #ffffff !important;
+    }
+    
+    /* Tüm metinleri siyah yap */
+    .stApp, .stMarkdown, h1, h2, h3, p, div {
+        color: #000000 !important;
+    }
+    
+    /* Başlıklar */
+    h1, h2, h3 {
+        color: #1f1f1f !important;
+    }
+    
+    /* Buton stili */
+    .stButton button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white !important;
+        border: none;
+        border-radius: 10px;
+        padding: 12px 24px;
+        font-size: 16px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    /* Metin alanı */
+    .stTextArea textarea {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+    
+    /* Sidebar gizle */
+    [data-testid="stSidebar"] {
+        display: none;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 TR_STOPWORDS = {
     "ve","veya","ile","ama","fakat","ancak","çünkü","gibi","daha","çok",
@@ -150,6 +200,60 @@ def predict_text(text: str, model, vectorizer, scaler):
         st.warning("⚠️ Lütfen farklı bir metin deneyin veya sayfayı yenileyin.")
         return None, None, None
 
+def analyze_sentences(text: str, model, vectorizer, scaler):
+    """Her cümleyi ayrı ayrı analiz et ve AI oranlarını döndür"""
+    # Cümlelere ayır
+    sentences = [s.strip() for s in re.split(r'([.!?]+)', text) if s.strip()]
+    
+    # Cümle ve noktalama işaretlerini birleştir
+    combined_sentences = []
+    i = 0
+    while i < len(sentences):
+        if i + 1 < len(sentences) and sentences[i + 1] in ['.', '!', '?', '...']:
+            combined_sentences.append(sentences[i] + sentences[i + 1])
+            i += 2
+        else:
+            combined_sentences.append(sentences[i])
+            i += 1
+    
+    results = []
+    for sent in combined_sentences:
+        if len(sent.strip()) < 10:  # Çok kısa cümleler için
+            results.append({
+                'text': sent,
+                'is_ai': False,
+                'ai_prob': 0.0,
+                'human_prob': 1.0
+            })
+            continue
+        
+        try:
+            cleaned = clean_text(sent)
+            features = extract_advanced_features(cleaned)
+            tfidf_features = vectorizer.transform([cleaned])
+            stat_features = pd.DataFrame([features])
+            stat_features_scaled = scaler.transform(stat_features)
+            combined = hstack([tfidf_features, stat_features_scaled])
+            
+            pred = model.predict(combined)[0]
+            proba = model.predict_proba(combined)[0]
+            
+            results.append({
+                'text': sent,
+                'is_ai': pred == 1,
+                'ai_prob': proba[1],
+                'human_prob': proba[0]
+            })
+        except:
+            results.append({
+                'text': sent,
+                'is_ai': False,
+                'ai_prob': 0.0,
+                'human_prob': 1.0
+            })
+    
+    return results
+
 # Ana Uygulama
 st.title("🎯 ZeroGPT Türkçe - Final Versiyon")
 st.markdown("### Gerçek ChatGPT Metinleriyle Eğitilmiş AI Dedektörü")
@@ -194,9 +298,12 @@ if st.button("🚀 Analiz Et", type="primary", use_container_width=True):
             if pred is None or proba is None or features is None:
                 st.stop()  # Hata mesajı zaten gösterildi, devam etme
             
+            # Cümle bazlı analiz
+            sentence_results = analyze_sentences(user_input, model, vectorizer, scaler)
+            
             st.markdown("---")
             
-            # Ana sonuç - büyük ve belirgin
+            # Ana sonuç - sade ve anlaşılır
             if pred == 0:
                 st.success("# ✅ İNSAN YAZISI")
                 st.metric("Güven Oranı", f"%{proba[0]*100:.1f}", delta="İnsan")
@@ -204,7 +311,93 @@ if st.button("🚀 Analiz Et", type="primary", use_container_width=True):
                 st.error("# 🤖 YAPAY ZEKA YAZISI")
                 st.metric("Güven Oranı", f"%{proba[1]*100:.1f}", delta="AI")
             
+            st.markdown("---")
+            
+            # 🎨 CÜMLE BAZLI VURGULAMA - AI cümleleri sarı renkte!
+            st.markdown("### 🔍 Detaylı Cümle Analizi")
+            st.markdown("**🟨 Sarı vurgulu** kısımlar AI tarafından yazılmış, **⬜ normal** kısımlar insan yazısı:")
+            
+            # HTML oluştur - Beyaz arka plan ve siyah metin
+            html_content = '''
+            <div style="
+                line-height: 2.2; 
+                font-size: 18px; 
+                padding: 25px; 
+                background: #ffffff;
+                color: #000000;
+                border-radius: 10px; 
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                border: 2px solid #e0e0e0;
+            ">'''
+            
+            ai_count = 0
+            human_count = 0
+            
+            for result in sentence_results:
+                text = result['text']
+                is_ai = result['is_ai']
+                ai_prob = result['ai_prob']
+                
+                if is_ai and ai_prob > 0.6:  # AI tespit eşiği
+                    ai_count += 1
+                    # Sarı vurgulu AI cümlesi - çok belirgin!
+                    html_content += f'''
+                    <span class="ai-sentence" style="
+                        background: #FFD93D;
+                        color: #000000;
+                        padding: 6px 10px;
+                        border-radius: 8px;
+                        border-left: 5px solid #FF6B35;
+                        margin: 3px;
+                        display: inline-block;
+                        font-weight: 600;
+                        transition: all 0.3s ease;
+                        cursor: help;
+                        box-shadow: 0 2px 8px rgba(255, 217, 61, 0.5);
+                    " title="🤖 AI Olasılığı: %{ai_prob*100:.1f}">🤖 {text}</span> 
+                    '''
+                else:
+                    human_count += 1
+                    # Normal metin (insan) - açık gri arka plan
+                    html_content += f'''<span style="
+                        background: #f5f5f5;
+                        color: #000000;
+                        padding: 6px 10px;
+                        margin: 3px;
+                        display: inline-block;
+                        border-radius: 5px;
+                    ">👤 {text}</span> '''
+            
+            html_content += '</div>'
+            
+            # CSS ile birlikte göster
+            components.html(f"""
+                <style>
+                    @keyframes pulse {{
+                        0%, 100% {{ box-shadow: 0 2px 8px rgba(255, 217, 61, 0.5); }}
+                        50% {{ box-shadow: 0 4px 16px rgba(255, 217, 61, 0.8); }}
+                    }}
+                    .ai-sentence:hover {{
+                        transform: scale(1.05);
+                        box-shadow: 0 4px 16px rgba(255, 107, 53, 0.6) !important;
+                        background: #FFC300 !important;
+                    }}
+                </style>
+                {html_content}
+            """, height=max(300, len(sentence_results) * 35))
+            
+            # İstatistikler
+            st.markdown("---")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("🤖 AI Cümleleri", f"{ai_count} adet", delta=f"%{(ai_count/(ai_count+human_count)*100) if (ai_count+human_count) > 0 else 0:.0f}")
+            with col2:
+                st.metric("👤 İnsan Cümleleri", f"{human_count} adet", delta=f"%{(human_count/(ai_count+human_count)*100) if (ai_count+human_count) > 0 else 0:.0f}")
+            with col3:
+                st.metric("📝 Toplam Cümle", f"{ai_count + human_count} adet")
+            
             # Olasılık çubukları
+            st.markdown("---")
             st.markdown("### 📊 Detaylı Olasılıklar")
             col1, col2 = st.columns(2)
             
