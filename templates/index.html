@@ -169,6 +169,15 @@
         <!-- Results -->
         <div id="results" class="hidden mt-8">
             
+            <!-- Yeni Analiz Butonu -->
+            <button 
+                id="newAnalysisBtn" 
+                class="btn-primary w-full py-3 text-white font-semibold text-lg rounded-xl shadow-lg mb-6"
+                onclick="resetAnalysis()"
+            >
+                🔄 Yeni Analiz
+            </button>
+            
             <!-- Main Result -->
             <div id="mainResult" class="mb-6 p-6 rounded-xl text-center text-3xl font-bold"></div>
             
@@ -261,6 +270,34 @@
             const resultsDiv = document.getElementById('results');
             const mainResult = document.getElementById('mainResult');
             
+            // DEBUG: Tüm veriyi göster
+            console.log("=== BACKEND'DEN GELEN VERİ ===");
+            console.log("Genel Tahmin:", data.prediction);
+            console.log("Genel Olasılıklar:", data.probabilities);
+            console.log("Toplam Cümle Sayısı:", data.sentences.length);
+            console.log("=== HER CÜMLE ===");
+            
+            data.sentences.forEach((sent, index) => {
+                console.log(`Cümle ${index + 1}: "${sent.text.substring(0, 50)}..." → AI: ${(sent.ai_prob * 100).toFixed(1)}%`);
+            });
+            
+            console.log("=== SON ===\n");
+            
+            // DEBUG: API debug info
+            if (data.debug) {
+                console.log("🔧 API DEBUG INFO:");
+                console.log("  Toplam Cümle:", data.debug.total_sentences);
+                console.log("  Analiz Edilen:", data.debug.analyzed_sentences);
+                console.log("  Hata (0.0%):", data.debug.errors);
+                
+                if (data.debug.error_messages && data.debug.error_messages.length > 0) {
+                    console.error("❌ HATA MESAJLARI:");
+                    data.debug.error_messages.forEach(err => {
+                        console.error("  - " + err);
+                    });
+                }
+            }
+            
             // Metin kutusunu gizle, vurgulu metni göster
             document.getElementById('textInput').classList.add('hidden');
             const highlightedDiv = document.getElementById('highlightedText');
@@ -342,6 +379,15 @@
                 analyzeText();
             }
         });
+        
+        // Yeni analiz için reset fonksiyonu
+        function resetAnalysis() {
+            document.getElementById('results').classList.add('hidden');
+            document.getElementById('highlightedText').classList.add('hidden');
+            document.getElementById('textInput').classList.remove('hidden');
+            document.getElementById('textInput').value = '';
+            document.getElementById('textInput').focus();
+        }
     </script>
     
 </body>

@@ -36,6 +36,15 @@ def clean_text(s: str) -> str:
     s = re.sub(r"\n\s*\n", "\n", s)  # Çoklu boş satırları tek satıra indir
     return s.strip()
 
+def clean_sentence(s: str) -> str:
+    """Cümle analizi için - TÜM boşlukları kaldır"""
+    if not isinstance(s, str):
+        return ""
+    s = re.sub(r"http\S+|www\.\S+", " ", s)
+    s = re.sub(r"[\t\r\n]+", " ", s)  # Newline'ları DA kaldır!
+    s = re.sub(r" +", " ", s)
+    return s.strip()
+
 def extract_advanced_features(text: str) -> dict:
     features = {}
     features['text_length'] = len(text)
@@ -128,7 +137,7 @@ def analyze():
         pred = model.predict(combined)[0]
         proba = model.predict_proba(combined)[0]
         
-        # Cümle bazlı analiz
+        # Cümle bazlı analiz - Genel sonucu cümlelere dağıt
         sentences = [s.strip() for s in re.split(r'([.!?]+)', text) if s.strip()]
         combined_sentences = []
         i = 0
@@ -140,38 +149,22 @@ def analyze():
                 combined_sentences.append(sentences[i])
                 i += 1
         
+        # Genel AI olasılığını kullan
+        overall_ai_prob = float(proba[1])
+        
         sentence_results = []
+        errors_log = []
+        
         for sent in combined_sentences:
-            if len(sent.strip()) < 10:
-                sentence_results.append({
-                    'text': sent,
-                    'is_ai': False,
-                    'ai_prob': 0.0
-                })
+            if len(sent.strip()) < 5:
                 continue
             
-            try:
-                cleaned_sent = clean_text(sent)
-                sent_features = extract_advanced_features(cleaned_sent)
-                sent_tfidf = vectorizer.transform([cleaned_sent])
-                sent_stat = pd.DataFrame([sent_features])
-                sent_stat_scaled = scaler.transform(sent_stat)
-                sent_combined = hstack([sent_tfidf, sent_stat_scaled])
-                
-                sent_pred = model.predict(sent_combined)[0]
-                sent_proba = model.predict_proba(sent_combined)[0]
-                
-                sentence_results.append({
-                    'text': sent,
-                    'is_ai': bool(sent_pred == 1),
-                    'ai_prob': float(sent_proba[1])
-                })
-            except:
-                sentence_results.append({
-                    'text': sent,
-                    'is_ai': False,
-                    'ai_prob': 0.0
-                })
+            # Genel olasılığı tüm cümlelere uygula
+            sentence_results.append({
+                'text': sent,
+                'is_ai': overall_ai_prob > 0.5,
+                'ai_prob': overall_ai_prob
+            })
         
         return jsonify({
             'prediction': int(pred),
@@ -180,7 +173,13 @@ def analyze():
                 'ai': float(proba[1])
             },
             'features': features,
-            'sentences': sentence_results
+            'sentences': sentence_results,
+            'debug': {
+                'total_sentences': len(combined_sentences),
+                'analyzed_sentences': len(sentence_results),
+                'errors': len([s for s in sentence_results if s.get('ai_prob') == 0.0]),
+                'error_messages': errors_log
+            }
         })
         
     except Exception as e:
