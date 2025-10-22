@@ -137,7 +137,7 @@ def analyze():
         pred = model.predict(combined)[0]
         proba = model.predict_proba(combined)[0]
         
-        # Cümle bazlı analiz - Genel sonucu cümlelere dağıt
+        # Cümle bazlı analiz - Her cümleyi GERÇEKTEN analiz et
         sentences = [s.strip() for s in re.split(r'([.!?]+)', text) if s.strip()]
         combined_sentences = []
         i = 0
@@ -149,22 +149,55 @@ def analyze():
                 combined_sentences.append(sentences[i])
                 i += 1
         
-        # Genel AI olasılığını kullan
-        overall_ai_prob = float(proba[1])
-        
         sentence_results = []
         errors_log = []
         
-        for sent in combined_sentences:
-            if len(sent.strip()) < 5:
+        # Genel sonucu baz al - eşik değeri ayarla
+        overall_ai_prob = float(proba[1])
+        # Eğer genel %70+ AI ise, cümlelerde eşiği düşür
+        sentence_threshold = 0.3 if overall_ai_prob > 0.7 else 0.5
+        
+        for idx, sent in enumerate(combined_sentences):
+            if len(sent.strip()) < 10:
                 continue
             
-            # Genel olasılığı tüm cümlelere uygula
-            sentence_results.append({
-                'text': sent,
-                'is_ai': overall_ai_prob > 0.5,
-                'ai_prob': overall_ai_prob
-            })
+            try:
+                # CONTEXT EKLE: Önceki + mevcut + sonraki cümle
+                context_parts = []
+                if idx > 0:  # Önceki cümle varsa ekle
+                    context_parts.append(combined_sentences[idx - 1])
+                context_parts.append(sent)  # Mevcut cümle
+                if idx < len(combined_sentences) - 1:  # Sonraki cümle varsa ekle
+                    context_parts.append(combined_sentences[idx + 1])
+                
+                # Context'li metni birleştir
+                context_text = ' '.join(context_parts)
+                cleaned_context = clean_sentence(context_text)
+                
+                # Context ile analiz et
+                sent_features = extract_advanced_features(cleaned_context)
+                sent_tfidf = vectorizer.transform([cleaned_context])
+                sent_stat = pd.DataFrame([sent_features])
+                sent_stat_scaled = scaler.transform(sent_stat)
+                sent_combined = hstack([sent_tfidf, sent_stat_scaled])
+                
+                # Model tahmini
+                sent_pred = model.predict(sent_combined)[0]
+                sent_proba = model.predict_proba(sent_combined)[0]
+                
+                # Dinamik eşik kullan
+                sentence_results.append({
+                    'text': sent,
+                    'is_ai': float(sent_proba[1]) > sentence_threshold,
+                    'ai_prob': float(sent_proba[1])
+                })
+            except Exception as e:
+                # Hata olursa: genel olasılığı kullan
+                sentence_results.append({
+                    'text': sent,
+                    'is_ai': bool(pred == 1),
+                    'ai_prob': overall_ai_prob
+                })
         
         return jsonify({
             'prediction': int(pred),
@@ -183,7 +216,10 @@ def analyze():
         })
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        import traceback
+        print("❌ HATA:", str(e))
+        traceback.print_exc()
+        return jsonify({'error': f'Analiz hatası: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8080)
