@@ -44,8 +44,8 @@ from sklearn.ensemble import GradientBoostingClassifier
 # ------------------------------------------------------------
 # Konfig
 # ------------------------------------------------------------
-DEFAULT_HUMAN = "temizlenmis_turkce_veri.csv"
-DEFAULT_AI    = "ai_texts_35k.csv"
+DEFAULT_HUMAN = "dengeli_veriset_5k.csv"
+DEFAULT_AI    = "dengeli_veriset_5k.csv"
 MODEL_PATH    = "zeroGPT_v2_model.pkl"
 VECT_PATH     = "zeroGPT_v2_vectorizer.pkl"   # TF-IDF bileşeni ayrıca kaydedilir
 PIPE_PATH     = "zeroGPT_v2_pipeline.pkl"     # Tüm pipeline (önerilen)

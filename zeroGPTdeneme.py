@@ -30,8 +30,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, accuracy_score
 import joblib
 
-DEFAULT_HUMAN = "temizlenmis_turkce_veri.csv"
-DEFAULT_AI = "ai_texts_35k.csv"
+DEFAULT_HUMAN = "dengeli_veriset_5k.csv"
+DEFAULT_AI = "dengeli_veriset_5k.csv"
 MODEL_PATH = "zeroGPT_model.pkl"
 VECTORIZER_PATH = "zeroGPT_vectorizer.pkl"
 FINAL_DATASET = "final_dataset.csv"

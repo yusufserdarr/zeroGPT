@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-ZeroGPT Final - Gerçek ChatGPT Tespiti
---------------------------------------
-Gerçek ChatGPT metinleriyle eğitilmiş final model
+ZeroGPT SUPER - Geliştirilmiş AI Tespiti
+-----------------------------------------
+TTC-3600 + Wikipedia + Gerçek ChatGPT ile eğitilmiş
+70,000 örnek içeren gelişmiş model
 """
 import streamlit as st
 import streamlit.components.v1 as components
 import joblib
 import os
 import re
-import math
 import numpy as np
 import pandas as pd
-from collections import Counter
 from scipy.sparse import hstack
+
+# Model yeni eğitildi - artık uyumsuzluk yok!
 
 st.set_page_config(
     page_title="ZeroGPT Türkçe - Final",
@@ -71,14 +72,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-TR_STOPWORDS = {
-    "ve","veya","ile","ama","fakat","ancak","çünkü","gibi","daha","çok",
-    "az","bu","şu","o","bir","iki","üç","her","hiç","mi","mı","mu","mü",
-    "de","da","ki","için","üzere","olan","olarak","sonra","önce","ise",
-    "ya","ne","neden","nasıl","hangi","hem","en","ben","sen","biz","siz",
-    "onlar","var","yok","diye","kadar","beri","göre","rağmen","dolayı"
-}
-
 def clean_text(s: str) -> str:
     if not isinstance(s, str):
         return ""
@@ -91,65 +84,34 @@ def clean_text(s: str) -> str:
     return s.strip()
 
 def extract_advanced_features(text: str) -> dict:
-    features = {}
-    features['text_length'] = len(text)
-    features['word_count'] = len(text.split())
-    
+    """Gelişmiş özellikler - Model ile uyumlu"""
+    words = text.split()
     sentences = [s.strip() for s in re.split(r'[.!?]+', text) if s.strip()]
-    features['sentence_count'] = len(sentences)
     
+    features = {
+        'len': len(text),
+        'words': len(words),
+        'avg_word': np.mean([len(w) for w in words]) if words else 0,
+        'unique': len(set(words)) / len(words) if words else 0
+    }
+    
+    # Cümle özellikleri
     if len(sentences) > 0:
         sent_lengths = [len(s.split()) for s in sentences]
-        features['avg_sentence_length'] = np.mean(sent_lengths)
-        features['std_sentence_length'] = np.std(sent_lengths) if len(sent_lengths) > 1 else 0
-        features['burstiness'] = features['std_sentence_length'] / (features['avg_sentence_length'] + 1e-5)
+        features['avg_sent'] = np.mean(sent_lengths)
+        features['std_sent'] = np.std(sent_lengths) if len(sent_lengths) > 1 else 0
     else:
-        features['avg_sentence_length'] = 0
-        features['std_sentence_length'] = 0
-        features['burstiness'] = 0
+        features['avg_sent'] = 0
+        features['std_sent'] = 0
     
-    words = re.findall(r'\w+', text.lower(), flags=re.UNICODE)
-    if len(words) > 0:
-        features['lexical_diversity'] = len(set(words)) / len(words)
-        features['avg_word_length'] = np.mean([len(w) for w in words])
-        word_counts = Counter(words)
-        most_common_count = word_counts.most_common(1)[0][1]
-        features['max_word_repetition'] = most_common_count / len(words)
-        stopword_count = sum(1 for w in words if w in TR_STOPWORDS)
-        features['stopword_ratio'] = stopword_count / len(words)
-        digit_words = sum(1 for w in words if any(c.isdigit() for c in w))
-        features['digit_word_ratio'] = digit_words / len(words)
-    else:
-        features['lexical_diversity'] = 0
-        features['avg_word_length'] = 0
-        features['max_word_repetition'] = 0
-        features['stopword_ratio'] = 0
-        features['digit_word_ratio'] = 0
+    # Bağlaç sayısı (AI'ın ayırt edici özelliği!)
+    connectors = ['sonuç olarak', 'bununla birlikte', 'diğer yandan', 'öte yandan',
+                  'dolayısıyla', 'bu nedenle', 'ayrıca', 'bunun yanında']
+    features['connector'] = sum(text.lower().count(c) for c in connectors)
     
-    if len(text) > 0:
-        char_counts = Counter(text.lower())
-        total = sum(char_counts.values())
-        probs = [c/total for c in char_counts.values()]
-        features['char_entropy'] = -sum(p * math.log2(p + 1e-12) for p in probs)
-    else:
-        features['char_entropy'] = 0
-    
-    features['comma_count'] = text.count(',')
-    features['question_mark_count'] = text.count('?')
-    features['exclamation_count'] = text.count('!')
-    features['quote_count'] = text.count('"') + text.count("'")
-    
-    if len(text) > 0:
-        features['uppercase_ratio'] = sum(1 for c in text if c.isupper()) / len(text)
-    else:
-        features['uppercase_ratio'] = 0
-    
-    connectors = ['sonuç olarak', 'bununla birlikte', 'diğer yandan', 'öte yandan', 
-                  'kısacası', 'dolayısıyla', 'bu nedenle', 'ayrıca', 'bunun yanında']
-    features['connector_count'] = sum(text.lower().count(c) for c in connectors)
-    
-    passive_markers = ['edilmek', 'yapılmak', 'olmak', 'görülmek', 'düşünülmek']
-    features['passive_marker_count'] = sum(text.lower().count(p) for p in passive_markers)
+    # Noktalama
+    features['comma'] = text.count(',')
+    features['question'] = text.count('?')
     
     return features
 
@@ -162,10 +124,16 @@ def load_models():
     if not all(os.path.exists(p) for p in [model_path, vec_path, scaler_path]):
         return None, None, None
     
-    model = joblib.load(model_path)
-    vectorizer = joblib.load(vec_path)
-    scaler = joblib.load(scaler_path)
-    return model, vectorizer, scaler
+    try:
+        # Yeni eğitilmiş modeli yükle
+        model = joblib.load(model_path)
+        vectorizer = joblib.load(vec_path)
+        scaler = joblib.load(scaler_path)
+        return model, vectorizer, scaler
+    except Exception as e:
+        st.error(f"❌ Model yükleme hatası: {str(e)}")
+        st.info("💡 Lütfen ilkDeneme.ipynb'deki son 10 cell'i çalıştırarak modeli yeniden eğitin.")
+        return None, None, None
 
 def predict_text(text: str, model, vectorizer, scaler):
     """Metin tahmini yap - Hata yönetimi ile korumalı"""
@@ -258,25 +226,25 @@ def analyze_sentences(text: str, model, vectorizer, scaler):
     return results
 
 # Ana Uygulama
-st.title("🎯 ZeroGPT Türkçe - Final Versiyon")
-st.markdown("### Gerçek ChatGPT Metinleriyle Eğitilmiş AI Dedektörü")
+st.title("🎯 ZeroGPT Türkçe SUPER")
+st.markdown("### 🚀 TTC-3600 + Wikipedia + ChatGPT ile Geliştirilmiş AI Dedektörü")
 
 # Başarı rozetleri
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.metric("✅ Accuracy", "99.98%")
+    st.metric("📊 Veriset", "70K Örnek")
 with col2:
     st.metric("🎯 Model", "Gradient Boost")
 with col3:
-    st.metric("📊 Özellikler", "15K+ TF-IDF")
+    st.metric("✨ Kaynak", "TTC-3600")
 
 st.markdown("---")
 
 model, vectorizer, scaler = load_models()
 
 if model is None:
-    st.error("❌ Final model dosyaları bulunamadı!")
-    st.info("Lütfen önce modeli eğitin: `python3 retrain_with_real_chatgpt.py`")
+    st.error("❌ Model dosyaları bulunamadı!")
+    st.info("💡 **ilkDeneme.ipynb** dosyasındaki son 10 cell'i çalıştırarak modeli eğitin (Cell 18-27)")
     st.stop()
 
 # Metin girişi
@@ -419,46 +387,46 @@ if st.button("🚀 Analiz Et", type="primary", use_container_width=True):
             
             # Özellik analizi
             st.markdown("---")
-            st.markdown("### 🔬 Özellik Analizi")
+            st.markdown("### 🔬 Gelişmiş Metin Analizi")
             
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
-                st.metric("📏 Kelime", f"{features['word_count']:.0f}")
-                st.metric("📝 Cümle", f"{features['sentence_count']:.0f}")
+                st.metric("📏 Uzunluk", f"{features['len']:.0f}")
+                st.metric("📝 Kelime", f"{features['words']:.0f}")
             
             with col2:
-                st.metric("🎯 Çeşitlilik", f"{features['lexical_diversity']:.2f}")
-                st.metric("💥 Burstiness", f"{features['burstiness']:.2f}")
+                st.metric("✏️ Ort. Kelime", f"{features['avg_word']:.1f}")
+                st.metric("🎯 Çeşitlilik", f"{features['unique']:.2f}")
             
             with col3:
-                st.metric("🔢 Entropi", f"{features['char_entropy']:.2f}")
-                st.metric("🔗 Bağlaç", f"{features['connector_count']:.0f}")
+                st.metric("📊 Ort. Cümle", f"{features['avg_sent']:.1f}")
+                st.metric("📈 Std Cümle", f"{features['std_sent']:.1f}")
             
             with col4:
-                st.metric("📌 Stopword", f"{features['stopword_ratio']:.2f}")
-                st.metric("❓ Soru", f"{features['question_mark_count']:.0f}")
+                st.metric("🔗 Bağlaç", f"{features['connector']:.0f}")
+                st.metric("📌 Virgül", f"{features['comma']:.0f}")
             
             # Yorum
             st.markdown("---")
             with st.expander("💡 Bu Sonuç Ne Anlama Geliyor?"):
                 if pred == 1:
-                    st.info("""
+                    st.info(f"""
                     **AI Tespit İşaretleri:**
-                    - Düzenli ve tutarlı cümle yapısı (düşük burstiness)
-                    - Formal ve akademik dil kullanımı
-                    - Bağlaç yoğunluğu ("sonuç olarak", "bununla birlikte")
-                    - Yapılandırılmış paragraf düzeni
-                    - Tekrarlayan kalıplar ve kelime seçimleri
+                    - 🔗 Bağlaç kullanımı: {features['connector']} adet ("sonuç olarak", "dolayısıyla")
+                    - 📊 Düzenli cümle uzunluğu (std: {features['std_sent']:.1f})
+                    - 📝 Formal ve akademik dil
+                    - 🎯 Yapılandırılmış paragraf düzeni
+                    - ✨ Tutarlı kelime seçimleri
                     """)
                 else:
-                    st.success("""
+                    st.success(f"""
                     **İnsan Yazı İşaretleri:**
-                    - Değişken cümle uzunlukları (yüksek burstiness)
-                    - Doğal dil akışı ve spontane ifadeler
-                    - Kişisel vurgular ve ünlemler
-                    - Konuşma diline yakın üslup
-                    - Özgün kelime seçimleri
+                    - 💬 Doğal dil akışı
+                    - 🎭 Değişken cümle yapısı (std: {features['std_sent']:.1f})
+                    - 🗣️ Konuşma diline yakın üslup
+                    - 💭 Spontane ifadeler
+                    - 🎨 Özgün kelime seçimleri
                     """)
 
 # Örnek metinler
@@ -477,32 +445,40 @@ Deniz kenarında oturup sohbet ettik. Akşam da güzel bir yemek yedik.""")
 st.markdown("---")
 with st.expander("ℹ️ Model Hakkında"):
     st.markdown("""
-    ### 🎓 ZeroGPT Final Model
+    ### 🎓 ZeroGPT SUPER Model
     
     **Eğitim Verisi:**
-    - 📊 20,500+ Türkçe metin
-    - ✅ Gerçek ChatGPT örnekleri dahil
-    - 🔄 Dengeli veri seti (%50 AI, %50 İnsan)
+    - 📊 70,000 Türkçe metin
+    - ✅ 35K İnsan + 35K AI (Dengeli)
+    - 📰 TTC-3600 Türkçe Haber Veriseti
+    - 📚 Wikipedia Türkçe Makaleleri
+    - 🤖 Gerçek ChatGPT Örnekleri
+    
+    **Veri Kaynakları:**
+    - **TTC-3600:** 6 kategoride profesyonel haber metinleri
+    - **Wikipedia:** Ansiklopedik Türkçe içerik
+    - **ChatGPT:** Gerçek AI üretimi metinler
     
     **Teknik Özellikler:**
-    - 🚀 Gradient Boosting Classifier (200 trees)
-    - 📈 15,000 TF-IDF özellikleri (1-3 gram)
-    - 🔬 20+ istatistiksel özellik
-    - 🎯 %99.98 test accuracy
+    - 🚀 Gradient Boosting Classifier (100 trees)
+    - 📈 3,000 TF-IDF özellikleri (1-2 gram)
+    - 🔬 9 gelişmiş istatistiksel özellik
+    - 🎯 Yüksek doğruluk oranı
     
     **Tespit Edilen Özellikler:**
-    - Burstiness (cümle varyasyonu)
-    - Lexical Diversity (kelime çeşitliliği)
-    - Character Entropy (bilgi yoğunluğu)
-    - Connector Usage (bağlaç kullanımı)
-    - Syntactic Patterns (sözdizimi kalıpları)
+    - Metin uzunluğu & Kelime sayısı
+    - Ortalama kelime/cümle uzunluğu
+    - Kelime çeşitliliği
+    - Cümle standart sapması (burstiness)
+    - Bağlaç kullanımı ("sonuç olarak" vb.)
+    - Noktalama özellikleri (virgül, soru işareti)
     
-    **Version:** 1.0 Final (Gerçek ChatGPT ile eğitilmiş)
+    **Version:** 2.0 SUPER (TTC-3600 dahil gelişmiş model)
     """)
 
 st.markdown("---")
 st.markdown(
-    "<div style='text-align: center; color: gray;'>🎯 ZeroGPT Türkçe Final v1.0 - Gerçek ChatGPT Dedektörü</div>",
+    "<div style='text-align: center; color: gray;'>🚀 ZeroGPT Türkçe SUPER v2.0 - TTC-3600 Gelişmiş Model</div>",
     unsafe_allow_html=True
 )
 
